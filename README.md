@@ -6,4 +6,5 @@ Needs parts:
 Needs crates:
 
 [embedded-hal](https://crates.io/crates/embedded-hal)
+
 [ads1x1x](https://crates.io/crates/ads1x1x)
