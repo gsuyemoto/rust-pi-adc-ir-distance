@@ -1,0 +1,13 @@
+[package]
+name = "adc-ir-distance"
+version = "0.1.0"
+authors = ["Gary <gsuyemoto@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ads1x1x = "0.2"
+linux-embedded-hal = "0.3"
+embedded-hal = "0.2.4"
+nb = "1.0.0"
