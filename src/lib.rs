@@ -26,7 +26,9 @@ pub mod ir_distance {
                     thread::sleep(Duration::from_millis(5));
                 }
 
-                *last_ten.select_nth_unstable(MEDIAN_INDEX).1
+                let median = *last_ten.select_nth_unstable(MEDIAN_INDEX).1;
+                println!("median: {}", median);
+                median
             },
         }
     }
