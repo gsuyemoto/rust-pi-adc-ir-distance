@@ -1,5 +1,5 @@
 [package]
-name = "raspi-adc-ir"
+name = "raspi_adc_ir"
 version = "0.1.0"
 authors = ["Gary <gsuyemoto@gmail.com>"]
 edition = "2018"
