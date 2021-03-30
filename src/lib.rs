@@ -1,4 +1,4 @@
-mod ir_distance {
+pub mod ir_distance {
     use std::thread;
     use std::time::Duration;
     
