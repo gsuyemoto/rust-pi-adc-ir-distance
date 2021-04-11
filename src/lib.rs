@@ -1,46 +1,80 @@
 pub mod ir_distance {
-    use std::thread;
-    use std::time::Duration;
-    
+    use log::{info, debug, warn};
+    use std::cmp::Ordering::Equal;
     use linux_embedded_hal::I2cdev;
-    use ads1x1x::{Ads1x1x, ModeChangeError, SlaveAddr};
-    
-    const MEDIAN_READINGS: usize    = 11;
-    const MEDIAN_INDEX: usize       = 6;
+    use embedded_hal::adc::OneShot;   
+    use nb::block;
+    use ads1x1x::{
+//                ic::Ads1115,
+//                mode::OneShot,
+//                ic::Resolution16Bit,
+//                interface::I2cInterface,
+                channel, Ads1x1x, SlaveAddr,
+    };
     const DEVICE_PATH: &str         = "/dev/i2c-1";
     
-    pub fn get_median_reading() -> i16 {
-        let mut last_ten    = Vec::with_capacity(MEDIAN_READINGS);
-        let dev             = I2cdev::new(DEVICE_PATH).unwrap();
-        let address         = SlaveAddr::default();
-        let adc             = Ads1x1x::new_ads1115(dev, address);
+    pub struct IRDistance;
 
-        // change mode to continuous readings
-        match adc.into_continuous() {
-            Err(ModeChangeError::I2C(e, adc)) => panic!("Failed to change mode: {}", e),
-            Ok(mut adc) => {
-                for _ in 0..MEDIAN_READINGS {
-                    let distance = adc.read().unwrap();
-                
-                    last_ten.push(distance); 
-                    thread::sleep(Duration::from_millis(5));
-                }
+    impl IRDistance {
+        pub fn get_raw_reading() -> f32 {
+            debug!("Getting raw single reading...");
 
-                let median = *last_ten.select_nth_unstable(MEDIAN_INDEX).1;
-                println!("median: {}", median);
-                median
-            },
+            let dev             = I2cdev::new(DEVICE_PATH).unwrap();
+            let address         = SlaveAddr::default();
+            let mut adc         = Ads1x1x::new_ads1115(dev, address);
+            let raw_reading     = block!(adc.read(&mut channel::DifferentialA0A1)).unwrap();
+            
+            raw_reading as f32
         }
-    }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::ir_distance::get_median_reading;
+        pub fn get_raw_median(num_readings: usize) -> f32 {
+            debug!("Getting raw median reading...");
 
-    #[test]
-    fn test1() {
-        let person_detected = |min_dist| { get_median_reading() < min_dist };
-        assert_eq!(false, person_detected(30));
+            let dev             = I2cdev::new(DEVICE_PATH).unwrap();
+            let address         = SlaveAddr::default();
+            let mut adc         = Ads1x1x::new_ads1115(dev, address);
+            let median: usize   = num_readings / 2;
+            let mut all_readings: Vec<i16> = Vec::with_capacity(num_readings);
+
+            for _ in 0..num_readings {
+                debug!("Entering blocking to get reading from ADC...");
+
+                let reading = block!(adc.read(&mut channel::DifferentialA0A1)).unwrap();
+                all_readings.push(reading);
+
+                debug!("Reading to determine median: {}", reading);
+            }
+
+            // unable to use the following to find median as the values are float:
+            // let median = all_readings.select_nth_unstable(MEDIAN_INDEX).1;
+            all_readings.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
+            let median_reading = all_readings[ median ] as f32;
+
+            debug!("Raw median reading: {}", median_reading);
+            median_reading
+        } 
+
+        pub fn get_distance(num_readings: Option<usize>) -> f32 {
+            debug!("Getting distance using model...");
+
+            let num_readings    = num_readings.unwrap_or(10);
+            let median          = Self::get_raw_median(num_readings);
+            let distance        = Self::dist_with_model(median);
+
+            debug!("Distance with model: {}", distance);
+            distance
+        }
+
+        // using Y = A + B * ln(X)
+        // calculated logarithm regression:
+        // Y =  * ln(X)
+        // using: https://keisan.casio.com/exec/system/14059930226691
+        // using: https://stats.blue/Stats_Suite/logarithmic_regression_calculator.html
+        fn dist_with_model(adc_reading: f32) -> f32 {
+            debug!("Convert reading to distance...");
+
+            //115.8631_f32 + (-11.2342_f32 * (adc_reading as f32).ln())
+            116.4143_f32 + (-11.2966_f32 * (adc_reading as f32).ln())
+        }
     }
 }
