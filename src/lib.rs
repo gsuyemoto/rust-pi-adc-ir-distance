@@ -15,9 +15,15 @@ pub mod ir_distance {
     
     pub struct IRDistance;
 
+    impl Drop for IRDistance {
+        fn drop(&mut self) {
+            
+        }
+    }
+
     impl IRDistance {
         pub fn get_raw_reading() -> f32 {
-            debug!("Getting raw single reading...");
+            info!("Getting raw single reading...");
 
             let dev             = I2cdev::new(DEVICE_PATH).unwrap();
             let address         = SlaveAddr::default();
@@ -28,7 +34,7 @@ pub mod ir_distance {
         }
 
         pub fn get_raw_median(num_readings: usize) -> f32 {
-            debug!("Getting raw median reading...");
+            info!("Getting raw median reading...");
 
             let dev             = I2cdev::new(DEVICE_PATH).unwrap();
             let address         = SlaveAddr::default();
@@ -45,23 +51,23 @@ pub mod ir_distance {
                 debug!("Reading to determine median: {}", reading);
             }
 
-            // unable to use the following to find median as the values are float:
-            // let median = all_readings.select_nth_unstable(MEDIAN_INDEX).1;
-            all_readings.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
-            let median_reading = all_readings[ median ] as f32;
+            // use the following to find median if the values are float:
+            // all_readings.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
+            let median_reading = *all_readings.select_nth_unstable(median).1;
+            let median_reading = median_reading as f32;
 
-            debug!("Raw median reading: {}", median_reading);
+            info!("Raw median reading: {}", median_reading);
             median_reading
         } 
 
         pub fn get_distance(num_readings: Option<usize>) -> f32 {
-            debug!("Getting distance using model...");
+            info!("Getting distance using model...");
 
             let num_readings    = num_readings.unwrap_or(10);
             let median          = Self::get_raw_median(num_readings);
             let distance        = Self::dist_with_model(median);
 
-            debug!("Distance with model: {}", distance);
+            info!("Distance with model: {}", distance);
             distance
         }
 
@@ -71,10 +77,10 @@ pub mod ir_distance {
         // using: https://keisan.casio.com/exec/system/14059930226691
         // using: https://stats.blue/Stats_Suite/logarithmic_regression_calculator.html
         fn dist_with_model(adc_reading: f32) -> f32 {
-            debug!("Convert reading to distance...");
+            info!("Convert reading to distance...");
 
             //115.8631_f32 + (-11.2342_f32 * (adc_reading as f32).ln())
-            116.4143_f32 + (-11.2966_f32 * (adc_reading as f32).ln())
+            230.867_f32 + (-21.897_f32 * (adc_reading as f32).ln())
         }
     }
 }
